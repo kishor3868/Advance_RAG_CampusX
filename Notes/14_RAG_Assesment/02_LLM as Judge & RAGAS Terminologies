@@ -1,0 +1,899 @@
+# RAGAS - Part 2 : LLM as Judge & RAGAS Terminologies
+
+# Table of Contents
+
+1. Introduction
+2. Why do we need LLM as a Judge?
+3. Why Keyword Matching Fails?
+4. Why LLM-based Evaluation?
+5. Semantic Matching
+6. Key Terminologies in RAGAS
+   - Sample
+   - User Input
+   - Retrieved Context
+   - Response
+   - Reference
+   - Reference Context
+   - Evaluation Dataset
+   - Experiment
+7. What Retriever Metrics Measure?
+8. What Generator Metrics Measure?
+9. Hallucination
+10. Usefulness
+11. Robustness
+12. Complete Evaluation Architecture
+13. LangChain + RAGAS Example
+14. Key Takeaways
+
+---
+
+# 1. Introduction
+
+In the previous notes, we learned that **RAGAS** is an evaluation framework used to evaluate the quality of a RAG pipeline.
+
+One important question still remains.
+
+> **Who decides whether the generated answer is correct or not?**
+
+Earlier, evaluation was mainly done using:
+
+- Keyword Matching
+- Exact Match
+- BLEU
+- ROUGE
+
+However, these techniques have a major limitation.
+
+Modern RAG systems generate **natural language**, and the output is **not deterministic**.
+
+Therefore, we use another LLM to evaluate the generated answer.
+
+This concept is called
+
+# LLM as a Judge
+
+---
+
+# 2. LLM as Judge
+
+## Definition
+
+**LLM as a Judge** is an evaluation technique in which another Large Language Model evaluates the quality of the retrieved context and the generated response based on semantic understanding rather than exact keyword matching.
+
+Instead of manually comparing answers,
+
+we ask an LLM questions like:
+
+- Is the answer correct?
+- Is the answer grounded?
+- Did the model hallucinate?
+- Is the retrieved context relevant?
+
+---
+
+## Simple Definition
+
+> An LLM acts like an examiner that evaluates the output of another RAG system.
+
+---
+
+## Architecture
+
+```
+             User Query
+
+                  │
+
+                  ▼
+
+            RAG Pipeline
+
+                  │
+
+        ┌─────────┴─────────┐
+
+        ▼                   ▼
+
+Retrieved Context      Generated Response
+
+        └─────────┬─────────┘
+
+                  ▼
+
+            Judge LLM
+
+                  ▼
+
+          Evaluation Score
+```
+
+---
+
+## Example
+
+User Query
+
+```
+Who is the CEO of Tesla?
+```
+
+Retrieved Context
+
+```
+Elon Musk is the CEO of Tesla.
+```
+
+Generated Response
+
+```
+Tesla is led by Elon Musk.
+```
+
+Even though the wording is different,
+
+the meaning is identical.
+
+The Judge LLM understands this and assigns a high score.
+
+---
+
+# 3. Why Keyword Matching Fails?
+
+Earlier evaluation techniques simply compared words.
+
+Example
+
+Reference Answer
+
+```
+Elon Musk is the CEO of Tesla.
+```
+
+Generated Answer
+
+```
+Tesla is headed by Elon Musk.
+```
+
+Keyword Matching
+
+```
+CEO
+
+headed
+
+Different Words
+
+↓
+
+Low Score
+```
+
+Although both answers mean the same thing,
+
+keyword matching incorrectly treats them as different.
+
+---
+
+## Another Example
+
+Reference
+
+```
+The capital of India is New Delhi.
+```
+
+Generated
+
+```
+New Delhi is India's capital.
+```
+
+Exact Match
+
+```
+Different Sentence
+
+↓
+
+Fail
+```
+
+Semantically,
+
+both are correct.
+
+---
+
+# Problem with Keyword Matching
+
+Keyword-based evaluation:
+
+- Cannot understand synonyms.
+- Cannot understand sentence restructuring.
+- Cannot understand semantic meaning.
+- Penalizes correct answers with different wording.
+
+---
+
+# 4. Why LLM-Based Evaluation?
+
+Unlike keyword matching,
+
+LLMs understand the **meaning** of a sentence.
+
+They compare answers using semantic understanding.
+
+Example
+
+Reference
+
+```
+Tesla acquired Maxwell Technologies.
+```
+
+Generated
+
+```
+Maxwell Technologies was purchased by Tesla.
+```
+
+The Judge LLM understands that:
+
+```
+Acquired
+
+=
+
+Purchased
+```
+
+Therefore,
+
+the answer receives a high score.
+
+---
+
+# Advantages of LLM-Based Evaluation
+
+- Understands semantic meaning.
+- Handles paraphrased answers.
+- Evaluates natural language responses.
+- Better suited for modern RAG systems.
+- Can detect hallucinations and unsupported claims.
+
+Because RAG responses are **not deterministic**, LLM-based evaluation is preferred.
+
+---
+
+# 5. Semantic Matching
+
+Semantic Matching means comparing the **meaning** of two pieces of text instead of comparing exact words.
+
+Example
+
+Reference
+
+```
+The Earth revolves around the Sun.
+```
+
+Generated
+
+```
+The Earth moves around the Sun.
+```
+
+Keyword Matching
+
+```
+Different Words
+
+↓
+
+Low Score
+```
+
+Semantic Matching
+
+```
+Same Meaning
+
+↓
+
+High Score
+```
+
+This is the primary reason why RAGAS relies heavily on LLMs.
+
+---
+
+# 6. Key Terminologies in RAGAS
+
+Before learning RAGAS metrics, we must understand some important terms.
+
+---
+
+## 1. Sample
+
+A **Sample** represents one complete evaluation record.
+
+It contains everything required for evaluation.
+
+Example
+
+```
+Sample
+
+User Question
+
+Retrieved Context
+
+Generated Response
+
+Reference Answer
+```
+
+Think of it as **one test case**.
+
+---
+
+## 2. User Input
+
+The original question asked by the user.
+
+Example
+
+```
+Who is the CEO of Tesla?
+```
+
+Every evaluation starts with a user query.
+
+---
+
+## 3. Retrieved Context
+
+These are the documents retrieved by the retriever.
+
+Example
+
+```
+Document 1
+
+Elon Musk is the CEO of Tesla.
+
+Document 2
+
+Tesla was founded in 2003.
+```
+
+These documents become the context for the LLM.
+
+---
+
+## 4. Response
+
+The answer generated by the RAG pipeline.
+
+Example
+
+```
+Elon Musk is the CEO of Tesla.
+```
+
+This is what we ultimately evaluate.
+
+---
+
+## 5. Reference
+
+The **Reference** is the ground-truth answer (answer key).
+
+It is the expected correct answer.
+
+Example
+
+```
+Reference
+
+Elon Musk is the CEO of Tesla.
+```
+
+The Judge LLM compares the generated response with this reference.
+
+---
+
+## 6. Reference Context
+
+Reference Context is the ideal document(s) that should have been retrieved.
+
+Example
+
+Suppose the correct answer exists in:
+
+```
+Document 12
+```
+
+Then,
+
+```
+Reference Context
+
+↓
+
+Document 12
+```
+
+Retriever evaluation compares the retrieved documents against the reference context.
+
+---
+
+## 7. Evaluation Dataset
+
+An Evaluation Dataset is a collection of multiple evaluation samples.
+
+Example
+
+```
+Sample 1
+
+Sample 2
+
+Sample 3
+
+...
+
+Sample N
+```
+
+Instead of evaluating one question,
+
+RAGAS evaluates the entire dataset.
+
+---
+
+## 8. Experiment
+
+An **Experiment** is one complete RAG pipeline configuration.
+
+Example
+
+Experiment A
+
+```
+Chunk Size = 300
+
+Embedding = OpenAI
+
+Retriever = Similarity Search
+
+LLM = GPT-4.1
+```
+
+Experiment B
+
+```
+Chunk Size = 600
+
+Embedding = BGE
+
+Retriever = MMR
+
+LLM = Claude
+```
+
+Each experiment is evaluated separately.
+
+The experiment with the best metrics is selected.
+
+---
+
+# Complete Sample Structure
+
+```
+Sample
+
+│
+
+├── User Input
+
+├── Retrieved Context
+
+├── Response
+
+├── Reference
+
+└── Reference Context
+```
+
+---
+
+# 7. What Retriever Metrics Measure?
+
+Retriever metrics focus only on the retrieval component.
+
+They answer questions like:
+
+- Did the retriever fetch relevant documents?
+- Is important information missing?
+- Did it retrieve noisy or unrelated documents?
+
+---
+
+## Retriever Evaluation
+
+```
+User Query
+
+↓
+
+Retriever
+
+↓
+
+Retrieved Context
+
+↓
+
+Evaluation
+```
+
+Retriever metrics mainly evaluate:
+
+### Relevance
+
+Are the retrieved documents relevant to the query?
+
+---
+
+### Context Quality
+
+Does the retrieved context contain useful information?
+
+---
+
+### Noise
+
+How much irrelevant information is included?
+
+Example
+
+```
+Relevant Context
+
++
+
+Random Wikipedia Article
+```
+
+Noise reduces retrieval quality.
+
+---
+
+# Retriever Targets
+
+Retriever metrics primarily evaluate:
+
+```
+Retrieved Context
+
+↓
+
+Relevant?
+
+↓
+
+Complete?
+
+↓
+
+Contains Noise?
+```
+
+---
+
+# 8. What Generator Metrics Measure?
+
+Generator metrics evaluate the LLM response.
+
+They answer questions like:
+
+- Is the response correct?
+- Is it grounded?
+- Is it useful?
+- Did the model hallucinate?
+
+---
+
+Generator Evaluation
+
+```
+Retrieved Context
+
+↓
+
+LLM
+
+↓
+
+Generated Response
+
+↓
+
+Evaluation
+```
+
+---
+
+# Generator Targets
+
+Generator metrics mainly evaluate:
+
+```
+Generated Response
+
+↓
+
+Grounded?
+
+↓
+
+Useful?
+
+↓
+
+Hallucinated?
+```
+
+---
+
+# 9. Hallucination
+
+Hallucination occurs when the LLM generates information that is **not supported by the retrieved context**.
+
+Example
+
+Retrieved Context
+
+```
+Tesla CEO
+
+Elon Musk
+```
+
+Generated Response
+
+```
+Tesla was founded in 1990.
+```
+
+The retrieved context never mentioned 1990.
+
+Therefore,
+
+this is a hallucination.
+
+Hallucination metrics check whether every claim in the response is supported by the retrieved context.
+
+---
+
+# 10. Usefulness
+
+Even if an answer is correct,
+
+it should also be useful.
+
+Example
+
+Question
+
+```
+Explain Retrieval-Augmented Generation.
+```
+
+Generated Response
+
+```
+Yes.
+```
+
+Technically,
+
+this response is not incorrect,
+
+but it is not useful.
+
+Usefulness metrics measure whether the answer sufficiently addresses the user's query.
+
+---
+
+# 11. Robustness
+
+Robustness measures how consistently the RAG system performs under different conditions.
+
+Examples:
+
+- Different wording of the same question
+- Synonyms
+- Long questions
+- Short questions
+- Typographical errors
+
+Example
+
+Question 1
+
+```
+Who is the CEO of Tesla?
+```
+
+Question 2
+
+```
+Who currently leads Tesla?
+```
+
+A robust RAG system should produce the same correct answer for both queries.
+
+---
+
+# 12. Complete Evaluation Architecture
+
+```
+                Evaluation Dataset
+
+                        │
+
+                        ▼
+
+                   User Query
+
+                        │
+
+                        ▼
+
+                  RAG Pipeline
+
+        ┌──────────────────────────────┐
+
+        ▼                              ▼
+
+Retrieved Context              Generated Response
+
+        │                              │
+
+        └──────────────┬───────────────┘
+
+                       ▼
+
+                Reference Answer
+
+                       ▼
+
+                 Judge LLM (RAGAS)
+
+                       ▼
+
+             Evaluation Metrics
+
+                       ▼
+
+Retriever Quality
+
+Generator Quality
+
+Hallucination
+
+Usefulness
+
+Robustness
+```
+
+---
+
+# 13. LangChain + RAGAS Example
+
+## Install Packages
+
+```python
+pip install ragas
+pip install langchain
+pip install langchain-openai
+```
+
+---
+
+## Create an Evaluation Sample
+
+```python
+from ragas import EvaluationDataset
+
+sample = {
+    "user_input": "Who is the CEO of Tesla?",
+    "retrieved_contexts": [
+        "Elon Musk is the CEO of Tesla."
+    ],
+    "response": "Tesla is led by Elon Musk.",
+    "reference": "Elon Musk is the CEO of Tesla."
+}
+```
+
+---
+
+## Create Dataset
+
+```python
+dataset = EvaluationDataset.from_list([sample])
+```
+
+---
+
+## Select Metrics
+
+```python
+from ragas.metrics import (
+    faithfulness,
+    answer_relevancy,
+    context_precision,
+    context_recall
+)
+```
+
+---
+
+## Run Evaluation
+
+```python
+from ragas import evaluate
+
+results = evaluate(
+    dataset=dataset,
+    metrics=[
+        faithfulness,
+        answer_relevancy,
+        context_precision,
+        context_recall
+    ]
+)
+
+print(results)
+```
+
+---
+
+## Typical Output
+
+```text
+Faithfulness        : 0.96
+
+Answer Relevancy    : 0.94
+
+Context Precision   : 0.91
+
+Context Recall      : 0.95
+```
+
+Higher scores indicate better retrieval and response quality.
+
+---
+
+# 14. Key Takeaways
+
+- **LLM as a Judge** is an evaluation technique where an LLM assesses the quality of retrieved contexts and generated responses based on **semantic understanding**, rather than exact keyword matching.
+- Traditional **keyword matching** fails when answers use different wording, synonyms, or paraphrases, even if the meaning is identical.
+- **Semantic matching** compares the meaning of the generated response with the reference answer, making it much more suitable for evaluating modern RAG systems.
+- Important RAGAS terminologies include:
+  - **Sample** – one complete evaluation record.
+  - **User Input** – the original user query.
+  - **Retrieved Context** – documents returned by the retriever.
+  - **Response** – answer generated by the RAG pipeline.
+  - **Reference** – ground-truth (expected) answer.
+  - **Reference Context** – ideal documents that should have been retrieved.
+  - **Evaluation Dataset** – collection of evaluation samples.
+  - **Experiment** – one complete RAG pipeline configuration.
+- **Retriever metrics** evaluate whether the retrieved context is relevant, complete, and free from noise.
+- **Generator metrics** evaluate whether the response is grounded, useful, robust, and free from hallucinations.
+- **Hallucination**, **Usefulness**, and **Robustness** are key quality indicators of the generator component.
+- RAGAS integrates seamlessly with **LangChain** and enables automated evaluation of retrievers and LLMs using standardized metrics.

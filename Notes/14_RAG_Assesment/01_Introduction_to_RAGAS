@@ -1,0 +1,772 @@
+# RAGAS (RAG Assessment) - Introduction & Evaluation Metrics
+
+# Table of Contents
+
+1. Introduction to RAGAS
+2. Why do we need RAG Evaluation?
+3. Where does Evaluation happen in a RAG Pipeline?
+4. Ingestion Phase Evaluation
+5. Retrieval Phase Evaluation
+6. Retriever Failure vs Generator Failure
+7. Why Metrics Matter?
+8. Types of Evaluation Metrics
+   - Component Based Metrics
+   - Output Based Metrics
+   - Turn Based Metrics
+   - LLM Based vs Non-LLM Based Metrics
+9. Complete Evaluation Workflow
+10. Key Takeaways
+
+---
+
+# 1. Introduction to RAGAS
+
+## What is RAGAS?
+
+**RAGAS (Retrieval-Augmented Generation Assessment)** is an evaluation framework used to measure the quality of a Retrieval-Augmented Generation (RAG) system.
+
+Instead of simply checking whether the final answer is correct, RAGAS helps us evaluate **how well each component of the RAG pipeline is performing**.
+
+A RAG system mainly consists of two important components:
+
+1. **Retriever**
+2. **Generator (LLM)**
+
+If the final answer is incorrect, the problem may come from:
+
+- Poor Retrieval
+- Poor Response Generation
+- Or both
+
+RAGAS helps us identify **which component is responsible for the failure**.
+
+---
+
+## Simple Definition
+
+> **RAGAS is a framework used to evaluate and measure the performance of different components of a RAG pipeline using various evaluation metrics.**
+
+---
+
+# 2. Why do we need RAG Evaluation?
+
+Building a RAG system is an **iterative process**.
+
+We continuously experiment with different components to improve performance.
+
+For example:
+
+- Different chunking strategies
+- Different embedding models
+- Different retrievers
+- Different prompts
+- Different LLMs
+
+Question:
+
+**How do we know which configuration performs better?**
+
+The answer is:
+
+**Evaluation Metrics**
+
+Evaluation metrics assign scores to different experiments, allowing us to compare them objectively.
+
+---
+
+## Example
+
+Experiment 1
+
+```
+Chunk Size = 300
+
+Retriever = Similarity Search
+
+Embedding = OpenAI
+
+Score = 0.82
+```
+
+Experiment 2
+
+```
+Chunk Size = 600
+
+Retriever = MMR
+
+Embedding = BGE
+
+Score = 0.91
+```
+
+Since Experiment 2 has a higher score, it performs better.
+
+Without evaluation metrics, selecting the best configuration would rely only on intuition.
+
+---
+
+# 3. Where does Evaluation happen in a RAG Pipeline?
+
+Evaluation can be performed at different stages of the RAG pipeline.
+
+```
+Knowledge Source
+
+↓
+
+Document Loader
+
+↓
+
+Chunking
+
+↓
+
+Embedding
+
+↓
+
+Vector Database
+
+↓
+
+Retriever
+
+↓
+
+Prompt
+
+↓
+
+LLM
+
+↓
+
+Response
+
+↓
+
+Evaluation (RAGAS)
+```
+
+Evaluation is not limited to the final response.
+
+We can evaluate every stage independently.
+
+---
+
+# 4. Ingestion Phase Evaluation
+
+The **Ingestion Phase** prepares documents before retrieval.
+
+Several design choices influence retrieval quality.
+
+---
+
+## A. Chunking Experiments
+
+Chunking is one of the most important parameters in RAG.
+
+Different chunk sizes produce different retrieval quality.
+
+Example
+
+Experiment 1
+
+```
+Chunk Size = 300
+
+Overlap = 50
+```
+
+Experiment 2
+
+```
+Chunk Size = 600
+
+Overlap = 100
+```
+
+Evaluation helps determine which chunking strategy retrieves more relevant information.
+
+---
+
+## B. Embedding Model Experiments
+
+Different embedding models produce different vector representations.
+
+Examples
+
+- OpenAI Embeddings
+- BGE
+- E5
+- Instructor
+- Ollama Embeddings
+
+We compare them using evaluation metrics to identify the model that captures semantic meaning most effectively.
+
+---
+
+## C. Vector Database Experiments
+
+The vector database also influences retrieval performance.
+
+Examples
+
+- ChromaDB
+- FAISS
+- Pinecone
+- Qdrant
+- Milvus
+
+Different databases use different indexing techniques and retrieval algorithms.
+
+Evaluation helps determine which database performs best for the application.
+
+---
+
+# Ingestion Evaluation Summary
+
+```
+Documents
+
+↓
+
+Chunking Strategy
+
+↓
+
+Embedding Model
+
+↓
+
+Vector Database
+
+↓
+
+Evaluation
+
+↓
+
+Best Configuration Selected
+```
+
+---
+
+# 5. Retrieval Phase Evaluation
+
+After ingestion, evaluation focuses on the retrieval and generation stages.
+
+---
+
+## A. Retriever Tuning
+
+The retriever determines which documents are sent to the LLM.
+
+Several parameters can be tuned.
+
+Examples
+
+- Similarity Search
+- MMR
+- Hybrid Search
+- BM25
+- Parent Retriever
+- Multi Query Retriever
+
+Other parameters
+
+- k
+- fetch_k
+- score_threshold
+- lambda_mult
+
+Evaluation helps determine which retriever returns the most relevant context.
+
+---
+
+## B. Prompt Tuning
+
+The prompt significantly affects the quality of the generated response.
+
+Example
+
+Prompt A
+
+```
+Answer briefly.
+```
+
+Prompt B
+
+```
+Answer using only the retrieved context.
+Do not hallucinate.
+Explain step by step.
+```
+
+Different prompts produce different outputs.
+
+Evaluation identifies the most effective prompt.
+
+---
+
+## C. LLM Tuning
+
+Different LLMs behave differently.
+
+Examples
+
+- GPT-4.1
+- GPT-4o
+- Claude
+- Gemini
+- Llama
+- Mistral
+
+Evaluation helps compare:
+
+- Accuracy
+- Groundedness
+- Hallucination
+- Usefulness
+
+---
+
+# Retrieval Evaluation Summary
+
+```
+Retriever
+
+↓
+
+Prompt
+
+↓
+
+LLM
+
+↓
+
+Generated Response
+
+↓
+
+Evaluation
+```
+
+---
+
+# 6. Retriever Failure vs Generator Failure
+
+When a RAG system produces an incorrect answer, the failure usually belongs to one of two categories.
+
+---
+
+## Retriever Failure
+
+Retriever Failure occurs when the retriever does not fetch the correct or relevant context.
+
+Example
+
+Question
+
+```
+Who is the CEO of Tesla?
+```
+
+Retrieved Context
+
+```
+Apple Annual Report
+```
+
+Since the retrieved context is incorrect, even the best LLM cannot generate the correct answer.
+
+---
+
+## Generator Failure
+
+Here, the retriever successfully retrieves the correct context, but the LLM generates an incorrect response.
+
+Example
+
+Retrieved Context
+
+```
+Elon Musk is the CEO of Tesla.
+```
+
+Generated Response
+
+```
+Tim Cook is the CEO of Tesla.
+```
+
+The problem lies in the generator.
+
+---
+
+## Visual Comparison
+
+```
+Retriever Failure
+
+Query
+
+↓
+
+Wrong Context
+
+↓
+
+LLM
+
+↓
+
+Wrong Answer
+```
+
+```
+Generator Failure
+
+Query
+
+↓
+
+Correct Context
+
+↓
+
+LLM
+
+↓
+
+Wrong Answer
+```
+
+RAGAS provides metrics to identify whether the issue comes from retrieval or generation.
+
+---
+
+# 7. Why Metrics Matter?
+
+Metrics act like a **guidance compass** for improving a RAG system.
+
+Instead of guessing which configuration is better, metrics provide numerical evidence.
+
+Metrics help us answer questions like:
+
+- Which chunk size is better?
+- Which embedding model performs better?
+- Which retriever is more effective?
+- Which prompt produces more grounded responses?
+- Which LLM hallucinates less?
+
+---
+
+## Example
+
+```
+Experiment A
+
+Score = 0.78
+```
+
+```
+Experiment B
+
+Score = 0.91
+```
+
+Experiment B is objectively better.
+
+Thus, metrics guide optimization decisions.
+
+---
+
+# 8. Types of Evaluation Metrics
+
+Evaluation metrics can be categorized in multiple ways.
+
+---
+
+# A. Component Based Metrics
+
+These metrics evaluate individual components of the RAG pipeline.
+
+This is the most commonly used category.
+
+---
+
+### Retriever Only
+
+Evaluates only the retrieval component.
+
+Questions answered:
+
+- Are retrieved documents relevant?
+- Is important information missing?
+- Is unnecessary information retrieved?
+
+---
+
+### Generator (LLM) Only
+
+Evaluates only the generated response.
+
+Questions answered:
+
+- Is the answer correct?
+- Is it grounded?
+- Does it hallucinate?
+
+---
+
+### Retriever + LLM
+
+Evaluates the complete interaction between retrieval and generation.
+
+Checks:
+
+```
+Retrieved Context
+
+↓
+
+Generated Response
+```
+
+Does the response correctly use the retrieved context?
+
+---
+
+# B. Output Based Metrics
+
+Metrics can also be classified based on the type of output they produce.
+
+---
+
+## 1. Discrete Output
+
+Produces categorical results.
+
+Examples
+
+```
+Pass
+
+Fail
+```
+
+```
+Relevant
+
+Not Relevant
+```
+
+---
+
+## 2. Numerical Output
+
+Produces numerical scores.
+
+Examples
+
+```
+0.85
+
+0.93
+
+91%
+```
+
+These scores can be used for statistical analysis and comparison.
+
+---
+
+## 3. Ranked Output
+
+Produces a ranked list of results.
+
+Example
+
+```
+Document A
+
+Document C
+
+Document B
+```
+
+Useful for evaluating ranked retrieval systems.
+
+---
+
+# C. Turn Based Metrics
+
+Evaluation also depends on the number of conversation turns.
+
+---
+
+## Single Turn
+
+One user query followed by one response.
+
+```
+Question
+
+↓
+
+Retriever
+
+↓
+
+LLM
+
+↓
+
+Answer
+```
+
+Most RAG systems use single-turn evaluation.
+
+---
+
+## Multi Turn
+
+Used in conversational and Agentic systems.
+
+```
+Question
+
+↓
+
+Response
+
+↓
+
+Follow-up Question
+
+↓
+
+Tool Call
+
+↓
+
+Another Response
+
+↓
+
+Final Answer
+```
+
+Evaluation becomes more complex because multiple interactions are involved.
+
+---
+
+# D. LLM Based vs Non-LLM Based Metrics
+
+---
+
+## LLM Based Metrics
+
+These metrics use an LLM to perform evaluation.
+
+The LLM understands:
+
+- Context
+- Meaning
+- Semantics
+
+Therefore, it can evaluate responses even when wording differs.
+
+These are the most commonly used metrics in modern RAG evaluation.
+
+---
+
+## Non-LLM Based Metrics
+
+These metrics do not use an LLM.
+
+Instead, they rely on traditional techniques such as:
+
+- Keyword Matching
+- Exact Match
+- String Similarity
+- BLEU
+- ROUGE
+- Cosine Similarity
+
+These methods are computationally cheaper but less effective for semantic evaluation.
+
+---
+
+# Complete Evaluation Workflow
+
+```
+Knowledge Source
+
+↓
+
+Chunking
+
+↓
+
+Embedding
+
+↓
+
+Vector Database
+
+↓
+
+Retriever
+
+↓
+
+Prompt
+
+↓
+
+LLM
+
+↓
+
+Generated Response
+
+↓
+
+RAGAS Evaluation
+
+↓
+
+Evaluation Metrics
+
+↓
+
+Compare Experiments
+
+↓
+
+Improve Pipeline
+```
+
+---
+
+# Key Takeaways
+
+- **RAGAS (Retrieval-Augmented Generation Assessment)** is an evaluation framework used to measure the quality of different components in a RAG pipeline.
+- Evaluation is performed throughout the pipeline, including the **Ingestion Phase** (chunking, embedding models, vector databases) and the **Retrieval Phase** (retriever, prompts, and LLMs).
+- The two major failure categories are:
+  - **Retriever Failure** – incorrect or irrelevant context is retrieved.
+  - **Generator Failure** – the LLM generates an incorrect response despite receiving the correct context.
+- Metrics act as a **guidance compass**, allowing us to compare different experiments objectively and choose the best-performing configuration.
+- Evaluation metrics can be classified into:
+  - **Component-Based Metrics** (Retriever, LLM, Retriever + LLM)
+  - **Output-Based Metrics** (Discrete, Numerical, Ranked)
+  - **Turn-Based Metrics** (Single-turn and Multi-turn)
+  - **LLM-Based vs Non-LLM-Based Metrics**
+- In modern RAG systems, **LLM-based evaluation metrics are preferred** because they evaluate semantic meaning rather than relying only on exact keyword matching.
+```
